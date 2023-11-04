@@ -1,0 +1,62 @@
+version: '3.1'
+
+services:
+  mongo_db:
+    networks:
+      - duplo-net
+    image: mongo:latest
+    ports:
+      - 30000:27017
+    volumes:
+      - mongodbdata:/data/db
+    restart: always
+
+  postgres_db:
+    image: postgres
+    restart: always
+    networks:
+      - duplo-net
+    ports:
+      - 6432:5432
+    volumes:
+      - postgresdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=duplodb
+
+  backend:
+    networks:
+      - duplo-net
+    image: duplo:1.0.0
+    build:
+      context: .
+    depends_on:
+      - mongo_db
+      - postgres_db
+    container_name: duplo-backend
+    ports:
+      - $PORT:$PORT
+    environment:
+      - PORT=5000
+      - PSQL_DATABASE_TYPE=postgres
+      - PSQL_DATABASE_DRIVER=postgres
+      - PSQL_DATABASE_HOST=postgres_db
+      - PSQL_DATABASE_PORT=5432
+      - PSQL_DATABASE_USERNAME=postgres
+      - PSQL_DATABASE_PASSWORD=postgres
+      - PSQL_DATABASE_NAME=duplodb
+      - MONGODB_CONNECTION_STRING=mongodb://mongo_db:27017/duplodb
+      - TYPEORM_SYNC=true
+      - MIGRATIONS_RUN=false
+      - DUPLO_PLATFORM_CODE="022"
+      - TAX_API_URL=https://taxes.free.beeceptor.com/log-tax
+    command: sh -c "yarn seed:run && yarn start"
+
+volumes:
+  mongodbdata:
+  postgresdata:
+
+
+networks:
+  duplo-net:
+    driver: bridge
